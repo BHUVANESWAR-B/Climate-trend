@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+
+<title>ClimateTrend Dashboard</title>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+<!-- Bootstrap -->
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Geo Map -->
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-geo@4.3.0/build/index.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/topojson-client@3"></script>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1 class="text-center mt-4 mb-4">🌍 ClimateTrend Dashboard</h1>
+
+<!-- Stats -->
+<div class="row mb-4">
+
+<div class="col-md-4">
+<div class="card text-center shadow">
+<div class="card-body">
+<h5>🌡 Average Temperature</h5>
+<h3 id="avgTemp">--</h3>
+</div>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card text-center shadow">
+<div class="card-body">
+<h5>🔥 Maximum Temperature</h5>
+<h3 id="maxTemp">--</h3>
+</div>
+</div>
+</div>
+
+<div class="col-md-4">
+<div class="card text-center shadow">
+<div class="card-body">
+<h5>❄ Minimum Temperature</h5>
+<h3 id="minTemp">--</h3>
+</div>
+</div>
+</div>
+
+</div>
+
+<div class="row">
+
+<!-- Global Trend -->
+<div class="col-md-12">
+<div class="card shadow mb-4">
+<div class="card-body">
+<h5>📈 Global Temperature Trend</h5>
+<canvas id="tempChart"></canvas>
+</div>
+</div>
+</div>
+
+<!-- Top Countries -->
+<div class="col-md-12">
+<div class="card shadow mb-4">
+<div class="card-body">
+<h5>📊 Top 10 Hottest Countries</h5>
+<canvas id="countryChart"></canvas>
+</div>
+</div>
+</div>
+
+<!-- Map -->
+<div class="col-md-12">
+<div class="card shadow mb-4">
+<div class="card-body">
+<h5>🌍 World Temperature Map</h5>
+<canvas id="worldMap"></canvas>
+</div>
+</div>
+</div>
+
+<!-- Search -->
+<div class="col-md-12">
+<div class="card shadow mb-4">
+<div class="card-body">
+
+<h5>🔍 Search Country Climate Trend</h5>
+
+<div class="input-group mb-3">
+<input type="text" id="countryInput" class="form-control" placeholder="Enter Country Name">
+<button class="btn btn-primary" onclick="searchCountry()">Search</button>
+</div>
+
+<canvas id="searchChart"></canvas>
+
+</div>
+</div>
+</div>
+
+<!-- Prediction -->
+<div class="col-md-12">
+<div class="card shadow mb-4">
+<div class="card-body">
+
+<h5>🔮 Predict Country Temperature</h5>
+
+<div class="input-group mb-3">
+<input type="text" id="predCountry" class="form-control" placeholder="Enter Country (e.g. India)">
+<input type="number" id="predYear" class="form-control" placeholder="Enter Year (e.g. 2030)">
+<button class="btn btn-success" onclick="predictCountry()">Predict</button>
+</div>
+
+<h4 id="predictionResult"></h4>
+
+</div>
+</div>
+</div>
+
+</div>
+
+</div>
+
+<script>
+
+/////////////////////////////
+// Stats
+/////////////////////////////
+fetch('/stats')
+.then(res => res.json())
+.then(data => {
+document.getElementById("avgTemp").innerText = data.avg + " °C";
+document.getElementById("maxTemp").innerText = data.max + " °C";
+document.getElementById("minTemp").innerText = data.min + " °C";
+});
+
+/////////////////////////////
+// Global Chart
+/////////////////////////////
+fetch('/data')
+.then(res => res.json())
+.then(data => {
+
+const ctx = document.getElementById('tempChart').getContext('2d');
+
+new Chart(ctx,{
+type:'line',
+data:{
+labels:data.year,
+datasets:[{
+label:'Global Avg Temp',
+data:data.temp,
+borderColor:'red',
+backgroundColor:'rgba(255,0,0,0.2)',
+fill:true,
+tension:0.4
+}]
+},
+options:{responsive:true}
+});
+
+});
+
+/////////////////////////////
+// Countries Chart
+/////////////////////////////
+fetch('/countries')
+.then(res => res.json())
+.then(data => {
+
+const ctx = document.getElementById('countryChart').getContext('2d');
+
+new Chart(ctx,{
+type:'bar',
+data:{
+labels:data.country,
+datasets:[{
+label:'Temperature',
+data:data.temp,
+backgroundColor:[
+"#ff6384","#ff9f40","#ffcd56","#4bc0c0",
+"#36a2eb","#9966ff","#c9cbcf","#ff6384",
+"#36a2eb","#4bc0c0"
+]
+}]
+},
+options:{responsive:true}
+});
+
+});
+
+/////////////////////////////
+// Search
+/////////////////////////////
+let searchChart;
+
+function searchCountry(){
+
+const country = document.getElementById("countryInput").value;
+
+fetch('/search?country=' + country)
+.then(res => res.json())
+.then(data => {
+
+const ctx = document.getElementById('searchChart').getContext('2d');
+
+if(searchChart){
+searchChart.destroy();
+}
+
+searchChart = new Chart(ctx,{
+type:'line',
+data:{
+labels:data.year,
+datasets:[{
+label:country,
+data:data.temp,
+borderColor:'green',
+backgroundColor:'rgba(0,128,0,0.2)',
+fill:true,
+tension:0.4
+}]
+},
+options:{responsive:true}
+});
+
+});
+
+}
+
+/////////////////////////////
+// Prediction (Country)
+/////////////////////////////
+function predictCountry(){
+
+const country = document.getElementById("predCountry").value;
+const year = document.getElementById("predYear").value;
+
+fetch(`/predict_country?country=${country}&year=${year}`)
+.then(res => res.json())
+.then(data => {
+
+if(data.prediction === "Not enough data"){
+document.getElementById("predictionResult").innerText =
+"Not enough data for this country";
+}else{
+document.getElementById("predictionResult").innerText =
+"Predicted Temperature in " + data.country + " for " + data.year +
+" = " + data.prediction + " °C";
+}
+
+});
+
+}
+
+/////////////////////////////
+// Map
+/////////////////////////////
+async function loadMap(){
+
+const res = await fetch("https://unpkg.com/world-atlas/countries-50m.json");
+const world = await res.json();
+
+const countries = ChartGeo.topojson.feature(world, world.objects.countries).features;
+
+const ctx = document.getElementById("worldMap").getContext('2d');
+
+new Chart(ctx,{
+type:"choropleth",
+data:{
+labels:countries.map(d=>d.properties.name),
+datasets:[{
+label:"World Temperature",
+data:countries.map(d=>({feature:d,value:Math.random()*30}))
+}]
+},
+options:{
+responsive:true,
+scales:{
+projection:{axis:'x',projection:'equalEarth'}
+}
+}
+});
+
+}
+
+loadMap();
+
+</script>
+
+</body>
+</html>
